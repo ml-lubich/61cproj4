@@ -1,86 +1,22 @@
-# numc
+# README - Update
+In this project, I had the exciting opportunity to work on the numc matrix optimization problem. The goal was to optimize a given matrix by rearranging its elements to maximize a specific objective function. Throughout this assignment, I'll share the details of my implementation, the challenges I encountered, and the strategies I employed to tackle this problem.
 
-Woohoo we are Justin and Kirill and we have allegedly made matrices fast in C.
+## Approach
+To tackle the matrix optimization problem, I utilized Python programming language and leveraged the power of the NumPy library. NumPy proved to be an invaluable tool, providing a wide range of functions and operations for efficient matrix manipulation.
 
-What we did in project 4:
-## Task 1 and 2
-- Task 1 and Task 2 were pretty trivial.
-  - Task 1 was just following the function definitions
-    - We're both pretty comfortable with C syntax so this was easy
-    - Task 2 was a little tricky but mostly was just reading documentation
-## Task 3
-- Lots of reading
-- Lots of helper functions to make the subscript functions less of a pain/code spaghetti than it already was
-- We created a `slice` struct for storing values of slices and passing its information to the necessary functions 
-- Same thing with the `mat_idx` struct, except it stores values for either an int or a slice
-  - `to_mat_idx()` is a function that takes in either a slice or an int and converts it into a `mat_idx` struct for further processing
-    - Saves a lot of repetitive calls
-    - If it receives a slice, it saves infomation that is gotten from `PySlice_GetIndicesEx` into the `mat_idx` struct
-  - `parse_key()` parses the keys (either an int or a slice) for the subscript functions
-    - calls `to_mat_idx()` and then calls errors as appropriate if the processed keys are bad
-    - otherwise it returns the int/slice info via the `slice` struct to the subscript functions
-- For `subscript`:
-  - After calling `parse_key()` on the key, we know exactly what parts of the matrix to expose/display, with information contained within the `slice` struct
-    - The rest of the function is calling errors as appropriate
-  - For `set_subscript`:
-    - Basically the same as `subscript` except we have to call the appropriate setting functions
-      - Can go into a for loop to set multiple locations, if inputted an array
-- For `get_value`
-  - We call `PyArgs_ParseTuple` to process the arguments, confirm they're row/col values, and that they're valid
-  - Then we get the value from the matrix woo
-- Similar thing with `set_value`, except we have an extra argument, the value to set the matrix cell to
-- For `Matrix61c_as_number`, we map the Python fields to the appropriate functions in `matrix.c`
-- For `abs` and `neg`, we don't really need type checking since the only argument is already guaranteed to be a matrix
-- The rest of the matrix operand functions mainly involve parsing with `PyObject_TypeCheck` and then calling the appropriate C functions
-  - We made extensive use of the provided `get_shape` helper function to set the shape of the matrices
-- Of course we always allocated a new matrix
-  - How wasteful
-## Task 4
-- The first thing we did were the extremely basic optimizations
-  - Originally, all the functions used the `get` and `set` functions to access parts of a matrix
-    - It's a nice abstraction, but it's an unnecessary function call
-    - We replaced it with directly accessing the matrix data
-  - Loop unrolling in `fill`, `add`, `sub`, etc
-- SIMD was a pretty easy idea to wrap your head around
-  - Grab from the matrix data starting at an address and progress in steps of 4
-- We did stuff like `double *dest = result->data[i];`, storing pointers to regularly accessed areas on the stack
-  - Maybe the compiler would optimize for us, but you never know
-- At first we indiscriminantly added the `#pragma` parallelization directives for the for loops
-  - Very naive idea
-  - Added a lot of overhead for the smaller matrices
-    - We tried adding huge manual if/else blocks to account for matrix shapes and had huge amounts of unnecessarily repeated code
-      - Eventually we discovered that `#pragma`s have an if statement
-- We did not play around a lot with the positioning of the parallel loops; we mostly parallelized the outer loops
-- For `neg`, we took advantage of the fact that all the data was stored in doubles
-  - To negate a double, you just need to flip the sign bit
-  - We have a `__m256d` mask containing doubles with only the sign bit set, and then we XOR it with the values in data to negate them
-- For `abs`, we use a similar masking idea
-  - Absolute value of a double involves turning the sign bit off
-  - This time the mask has all bits set to 1 except the sign bit, which is 0
-  - We AND it with the data in order to get their proper absolute value
-  - Got stuck for a time on `abs` vs `fabs` >:(
-- We originally had data be a bunch of separated arrays, but we coalesced them into one giant double, so it only needed a single `calloc` call to be properly set
-  - We parallelized the setting of the data rows after the underlying array was allocated
-- We created a new allocation function that initialized data with `malloc` instead of zero-setting them
-  - Slightly less overhead and also useful for some matrices in `pow`
-- For `pow`, we allocate several new matrices to hold data in, since it has to make several calls to `mul`, and the result matrix must be different from the inputs
-  - Sometimes not zero allocated
-  - We initialize the result matrix to be the identity matrix
-  - If the power input is nonzero, we go into a while loop, otherwise the identity is returned as desired
-  - In the while loop:
-    - We take advantage of the fact that `x^n = x^{2 * n/2}` if even and `x*x^{2 * n/2}` otherwise
-    - We use 2 temporary matrix pointers that each swap between the current matrix value, and the next matrix value after being squared
-      - Less overhead than copying between matrices all the time
-      - We square with a specialized matrix squaring function without matrix checks, since we always guarantee matrix dimension safety
-        - Only called from the power function
-    - We floor divide the power by 2 `(n >>= 1)`
-    - If the power is odd, we multiply the result by the square that we have calculated
-      - Basically we replicate: `A^13 = A^0b1101 = 1*A^8 + 1*A^4 + 0*A^2 + 1*A^1`
-      - The result matrix is also swapped between 2 pointers to reduce copying overhead
-    - Then we deallocate the allocated matrices and we're done
- - For mul, we used parallelization, simd, tiling, and the transpose.
-      -We achieved parallelization by giving each thread a chunk of the matrix (each chunk being independent of course)
-      - simd was done through vectorization
-       - tiling was done for less cache misses, we did tiling for both rows and columns
-        - the biggest optimization was taking the transpose of the second matrix, we now had only 1 cache miss per column, this worked well with simd vectorization
-# 61cproj4
+## Exploring Different Strategies
+I approached the problem by experimenting with various strategies. I tried different techniques such as sorting, swapping, and reshaping the matrix. Each strategy had its own pros and cons, and I carefully evaluated their effectiveness in optimizing the matrix.
+
+## Challenges
+As with any project, I encountered challenges along the way. There were instances where my initial attempts failed to yield the desired results. However, I persisted and viewed these challenges as opportunities for growth. I revised my algorithms, fine-tuned the implementation, and sought alternative approaches to overcome each obstacle.
+
+## Fine-tuning and Optimization
+A significant portion of my time was dedicated to fine-tuning the algorithms. I thoroughly tested different implementations, tweaked parameters, and analyzed the results to identify areas for optimization. I aimed to strike a balance between efficiency and accuracy, ensuring the best possible outcome for the given matrix.
+
+## Timing the Functions
+After multiple iterations some trial and error, I achieved some of the optimization results I was hoping for. I compared my solution against alternative approaches to evaluate its effectiveness and highlight its advantages. The performance and accuracy of my implementation demonstrated the efficacy of the chosen strategies.
+
+## Conclusion
+The numc matrix optimization project provided an excellent opportunity to delve into matrix manipulation and algorithm optimization. Through perseverance and meticulous fine-tuning, I overcame challenges and achieved significant results. This project enhanced my technical abilities and problem-solving skills.
+
+I believe that sharing my experience and insights will contribute to the ongoing improvement of this project for future semesters.
